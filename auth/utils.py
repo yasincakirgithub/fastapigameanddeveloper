@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Union, Any
 from jose import jwt
 from passlib.context import CryptContext
+import time
 
 password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -40,3 +41,12 @@ def create_refresh_token(subject: Union[str, Any], expires_delta: int = None) ->
     to_encode = {"exp": expires_delta, "sub": str(subject)}
     encoded_jwt = jwt.encode(to_encode, JWT_REFRESH_SECRET_KEY, ALGORITHM)
     return encoded_jwt
+
+
+def decode_token(token: str) -> dict:
+    try:
+        decoded_token = jwt.decode(token, JWT_SECRET_KEY, algorithms=[ALGORITHM])
+        print("decoded_token",decoded_token)
+        return decoded_token if decoded_token["exp"] >= time.time() else None
+    except:
+        return {}

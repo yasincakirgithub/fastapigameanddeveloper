@@ -1,5 +1,5 @@
-from typing import Union, List
-from fastapi import FastAPI,status, Depends, HTTPException
+from typing import  List
+from fastapi import FastAPI, status, Depends, HTTPException
 
 import database
 from database import db_state_default
@@ -16,12 +16,15 @@ from developers import schemas as developer_schemas
 from games import schemas as games_schemas
 from auth import schemas as auth_schemas
 
-from auth.utils import verify_password,create_access_token,create_refresh_token
+from auth.utils import verify_password, create_access_token, create_refresh_token,decode_token
+from auth.deps import JWTBearer
+
+
 
 
 sleep_time = 10
 database.db.connect()
-database.db.create_tables([games_models.Game, developer_models.Developer,auth_models.User])
+database.db.create_tables([games_models.Game, developer_models.Developer, auth_models.User])
 database.db.close()
 
 app = FastAPI()
@@ -52,7 +55,6 @@ def register(user: auth_schemas.UserCreate):
 @app.post('/login', response_model=auth_schemas.TokenSchema)
 async def login(user: auth_schemas.UserLogin):
     exist_user = auth_crud.get_user(user.username)
-    print("exist_user",exist_user,exist_user.password)
     if exist_user is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,13 +72,14 @@ async def login(user: auth_schemas.UserLogin):
         "refresh_token": create_refresh_token(user.username),
     }
 
+
 @app.get("/users/", response_model=List[auth_schemas.UserList], dependencies=[Depends(get_db)])
 def list_admin(skip: int = 0, limit: int = 100):
     users = auth_crud.get_users(skip=skip, limit=limit)
     return users
 
 
-@app.post("/games/", response_model=games_schemas.GameBase, dependencies=[Depends(get_db)])
+@app.post("/games/", response_model=games_schemas.GameBase, dependencies=[Depends(get_db),Depends(JWTBearer())])
 def create_game(game: games_schemas.GameBase):
     developer = developers_crud.get_developer(developer_id=game.developer_id)
     if not developer:
