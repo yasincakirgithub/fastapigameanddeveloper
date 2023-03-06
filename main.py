@@ -1,4 +1,4 @@
-from typing import  List
+from typing import List
 from fastapi import FastAPI, status, Depends, HTTPException
 
 import database
@@ -43,6 +43,10 @@ def get_db(db_state=Depends(reset_db_state)):
         if not database.db.is_closed():
             database.db.close
 
+async def get_auth_user(payload: dict = Depends(JWTBearer())):
+    auth_user = auth_crud.get_user(payload["sub"])
+    return auth_user.get_dict()
+
 
 @app.post("/register/", response_model=auth_schemas.UserList, dependencies=[Depends(get_db)])
 def register(user: auth_schemas.UserCreate):
@@ -79,8 +83,8 @@ def list_admin(skip: int = 0, limit: int = 100):
     return users
 
 
-@app.post("/games/", response_model=games_schemas.GameBase, dependencies=[Depends(get_db),Depends(JWTBearer())])
-def create_game(game: games_schemas.GameBase):
+@app.post("/games/", response_model=games_schemas.GameBase, dependencies=[Depends(get_db)])
+def create_game(game: games_schemas.GameBase,auth_user: auth_schemas.UserList = Depends(get_auth_user)):
     developer = developers_crud.get_developer(developer_id=game.developer_id)
     if not developer:
         raise HTTPException(status_code=404, detail="Developer not found")
